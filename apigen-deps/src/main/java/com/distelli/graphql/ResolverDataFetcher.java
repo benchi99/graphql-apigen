@@ -17,16 +17,17 @@ public class ResolverDataFetcher implements DataFetcher {
     private Resolver resolver;
     private boolean isBatched;
     private int listDepth;
+
     public ResolverDataFetcher(DataFetcher fetcher, Resolver resolver, int listDepth) {
         this.fetcher = fetcher;
         this.resolver = resolver;
         this.listDepth = listDepth;
-        if ( fetcher instanceof BatchedDataFetcher ) {
+        if (fetcher instanceof BatchedDataFetcher) {
             this.isBatched = true;
         } else {
             try {
                 Method getMethod = fetcher.getClass()
-                    .getMethod("get", DataFetchingEnvironment.class);
+                        .getMethod("get", DataFetchingEnvironment.class);
                 this.isBatched = null != getMethod.getAnnotation(Batched.class);
             } catch (NoSuchMethodException e) {
                 throw new IllegalArgumentException(e);
@@ -40,45 +41,45 @@ public class ResolverDataFetcher implements DataFetcher {
         List<Object> unresolved = new ArrayList<>();
         Object result;
         int depth = listDepth;
-        if ( env.getSource() instanceof List ) { // batched.
+        if (env.getSource() instanceof List) { // batched.
             result = getBatched(env);
-            if ( null != resolver ) addUnresolved(unresolved, result, ++depth);
+            if (null != resolver) addUnresolved(unresolved, result, ++depth);
         } else {
             result = getUnbatched(env);
-            if ( null != resolver ) addUnresolved(unresolved, result, depth);
+            if (null != resolver) addUnresolved(unresolved, result, depth);
         }
-        if ( null == resolver ) return result;
+        if (null == resolver) return result;
         return replaceResolved(result, resolver.resolve(unresolved).iterator(), depth);
     }
 
     public Object replaceResolved(Object result, Iterator<Object> resolved, int depth) {
-        if ( depth <= 0 ) {
+        if (depth <= 0) {
             return resolved.next();
         }
         List<Object> resolvedResults = new ArrayList<>();
-        if ( null == result ) return null;
-        for ( Object elm : (List)result ) {
-            resolvedResults.add(replaceResolved(elm, resolved, depth-1));
+        if (null == result) return null;
+        for (Object elm : (List) result) {
+            resolvedResults.add(replaceResolved(elm, resolved, depth - 1));
         }
         return resolvedResults;
     }
 
     public void addUnresolved(List<Object> unresolved, Object result, int depth) {
-        if ( depth <= 0 ) {
+        if (depth <= 0) {
             unresolved.add(result);
             return;
         }
-        if ( ! (result instanceof List) ) {
-            if ( null == result ) return;
-            throw new IllegalStateException("Fetcher "+fetcher+" expected to return a List for each result, got="+result);
+        if (!(result instanceof List)) {
+            if (null == result) return;
+            throw new IllegalStateException("Fetcher " + fetcher + " expected to return a List for each result, got=" + result);
         }
-        for ( Object elm : (List)result ) {
-            addUnresolved(unresolved, elm, depth-1);
+        for (Object elm : (List) result) {
+            addUnresolved(unresolved, elm, depth - 1);
         }
     }
 
     public Object getUnbatched(DataFetchingEnvironment env) {
-        if ( ! isBatched ) {
+        if (!isBatched) {
             try {
                 return fetcher.get(env);
             } catch (Exception e) {
@@ -91,10 +92,10 @@ public class ResolverDataFetcher implements DataFetcher {
 
         try {
             Object result = fetcher.get(envCopy);
-            if ( !(result instanceof List) || ((List)result).size() != 1 ) {
-                throw new IllegalStateException("Batched fetcher "+fetcher+" expected to return list of 1");
+            if (!(result instanceof List) || ((List) result).size() != 1) {
+                throw new IllegalStateException("Batched fetcher " + fetcher + " expected to return list of 1");
             }
-            return ((List)result).get(0);
+            return ((List) result).get(0);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
@@ -102,19 +103,19 @@ public class ResolverDataFetcher implements DataFetcher {
 
     public List<Object> getBatched(DataFetchingEnvironment env) {
         List sources = env.getSource();
-        if ( isBatched ) {
+        if (isBatched) {
             try {
                 Object result = fetcher.get(env);
-                if ( !(result instanceof List) || ((List)result).size() != sources.size() ) {
-                    throw new IllegalStateException("Batched fetcher "+fetcher+" expected to return list of "+sources.size());
+                if (!(result instanceof List) || ((List) result).size() != sources.size()) {
+                    throw new IllegalStateException("Batched fetcher " + fetcher + " expected to return list of " + sources.size());
                 }
-                return (List<Object>)result;
+                return (List<Object>) result;
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             }
         }
         List<Object> result = new ArrayList<>();
-        for ( Object source : sources ) {
+        for (Object source : sources) {
             DataFetchingEnvironmentImpl.Builder builder = DataFetchingEnvironmentImpl.newDataFetchingEnvironment(env);
             builder.source(source);
             DataFetchingEnvironment envCopy = builder.build();
@@ -130,11 +131,11 @@ public class ResolverDataFetcher implements DataFetcher {
 
     @Override
     public String toString() {
-        return "ResolverDataFetcher{"+
-            "resolver="+resolver+
-            ", fetcher="+fetcher+
-            ", isBatched="+isBatched+
-            ", listDepth="+listDepth+
-            "}";
+        return "ResolverDataFetcher{" +
+                "resolver=" + resolver +
+                ", fetcher=" + fetcher +
+                ", isBatched=" + isBatched +
+                ", listDepth=" + listDepth +
+                "}";
     }
 }
