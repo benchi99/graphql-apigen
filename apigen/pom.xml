@@ -4,7 +4,6 @@
     <maven>3.0</maven>
   </prerequisites>
 
-  <groupId>com.distelli.graphql</groupId>
   <artifactId>graphql-apigen</artifactId>
   <version>5.0.1-SNAPSHOT</version>
   <name>Generate Java interfaces given a GraphQL Schema</name>
@@ -94,7 +93,7 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.11</version>
+      <version>4.13.1</version>
       <scope>test</scope>
     </dependency>
 

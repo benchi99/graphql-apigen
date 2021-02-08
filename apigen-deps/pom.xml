@@ -4,7 +4,6 @@
     <maven>3.0</maven>
   </prerequisites>
 
-  <groupId>com.distelli.graphql</groupId>
   <artifactId>graphql-apigen-deps</artifactId>
   <version>5.0.1-SNAPSHOT</version>
   <name>Dependencies for generated code</name>
