@@ -2,6 +2,7 @@ package com.distelli.graphql.apigen;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
@@ -65,32 +66,11 @@ public class ApiGenMojo extends AbstractMojo {
             outputDirectory = makeAbsolute(outputDirectory);
 
             if (sourceDirectory.exists()) {
-                logger.debug("Running ApiGen\n\tsourceDirectory=" + sourceDirectory +
-                        "\n\toutputDirectory=" + outputDirectory);
+                logger.debug("Running ApiGen");
+                logger.debug(String.format("sourceDirectory=%s", sourceDirectory));
+                logger.debug(String.format("outputDirectory=%s", outputDirectory));
 
-                ClassLoader cp = getCompileClassLoader();
-
-                PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(cp);
-
-                ApiGen apiGen = new ApiGen.Builder()
-                        .withOutputDirectory(outputDirectory.toPath())
-                        .withGuiceModuleName(guiceModuleName)
-                        .withDefaultPackageName(defaultPackageName)
-                        .build();
-
-                Arrays.stream(resolver.getResources(SCHEMA_LOCATION)).forEach(resource -> {
-                    try {
-                        URL url = resource.getURL();
-                        logger.debug("Processing " + url);
-                        apiGen.addForReference(url);
-                    } catch (IOException ioe) {
-                        logger.error("I/O error while processing URL");
-                    }
-                });
-
-                findGraphql(sourceDirectory, apiGen::addForGeneration);
-
-                apiGen.generate();
+                setupApigen(getCompileClassLoader());
 
                 Resource schemaResource = getResource();
 
@@ -104,8 +84,32 @@ public class ApiGenMojo extends AbstractMojo {
                 msg = e.getClass().getName();
             }
 
-            logger.error(String.format("%s when trying to build sources from graphql.", msg), e);
+            logger.error(String.format("%s when trying to build sources from GraphQL schema.", msg), e);
         }
+    }
+
+    private void setupApigen(ClassLoader loader) throws IOException {
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(loader);
+
+        ApiGen apiGen = new ApiGen.Builder()
+                .withOutputDirectory(outputDirectory.toPath())
+                .withGuiceModuleName(guiceModuleName)
+                .withDefaultPackageName(defaultPackageName)
+                .build();
+
+        Arrays.stream(resolver.getResources(SCHEMA_LOCATION)).forEach(resource -> {
+            try {
+                URL url = resource.getURL();
+                logger.debug("Processing " + url);
+                apiGen.addForReference(url);
+            } catch (IOException ioe) {
+                logger.error("I/O error while processing URL");
+            }
+        });
+
+        findGraphql(sourceDirectory, apiGen::addForGeneration);
+
+        apiGen.generate();
     }
 
     private Resource getResource() {
@@ -129,22 +133,30 @@ public class ApiGenMojo extends AbstractMojo {
 
     private ClassLoader getCompileClassLoader() throws Exception {
         List<URL> urls = new ArrayList<>();
+
         String ignored = project.getBuild().getOutputDirectory();
-        getLog().debug("ignore=" + ignored);
+        logger.debug(String.format("ignore=%s", ignored));
 
-        for (String path : project.getCompileClasspathElements()) {
-            if (path.equals(ignored)) continue;
-            File file = makeAbsolute(new File(path));
-            String name = file.toString();
-            if (file.isDirectory() || !file.exists()) {
-                name = name + "/";
+        project.getCompileClasspathElements().forEach(path -> {
+            if (!path.equals(ignored)) {
+                File file = makeAbsolute(new File(path));
+                String name = file.toString();
+
+                if (file.isDirectory() || !file.exists()) {
+                    name = name + "/";
+                }
+
+                try {
+                    URL url = new URL("file", null, name);
+                    urls.add(url);
+                    logger.debug(String.format("classpath += %s", url));
+                } catch (MalformedURLException e) {
+                    logger.error(String.format("Failed to construct URL for file %s", name), e);
+                }
             }
-            URL url = new URL("file", null, name);
-            logger.debug("classpath += " + url);
-            urls.add(url);
-        }
+        });
 
-        return new URLClassLoader(urls.toArray(new URL[urls.size()]));
+        return new URLClassLoader((URL[]) urls.toArray());
     }
 
     private interface VisitPath {
